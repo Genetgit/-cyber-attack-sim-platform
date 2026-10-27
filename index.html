@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Defense dashboard</title><link rel="stylesheet" href="style.css"></head><body>
+<header><h1>Defense verification dashboard</h1><span id="conn" class="pill">Connecting…</span></header>
+<main>
+<div id="err" class="err" hidden role="alert"></div>
+<section class="card"><h2>Alerts</h2><div class="scroll"><table>
+<thead><tr><th>Severity</th><th>Title</th><th>Rule</th><th>Source IP</th><th>Risk</th><th>Status</th><th>Last seen</th></tr></thead>
+<tbody id="alerts"><tr><td colspan="7" class="loading"><span class="spin"></span>Loading alerts…</td></tr></tbody></table></div></section>
+<section class="card"><h2>Live events</h2><div class="scroll"><table><thead>
+<tr><th>Time</th><th>Host</th><th>Type</th><th>Source IP</th><th>User</th><th>Log line</th></tr></thead>
+<tbody id="events"><tr><td colspan="6" class="loading"><span class="spin"></span>Loading events…</td></tr></tbody></table></div></section>
+</main>
+<script src="config.js"></script><script src="common.js"></script>
+<script>
+async function load() {
+  const [alerts, events] = await Promise.all([api("/alerts"), api("/events?limit=50")]);
+  $("#alerts").innerHTML = alerts.length ? alerts.map(a => `<tr class="click sevbar ${esc(a.severity)}" data-id="${esc(a.alert_id)}">
+    <td>${sevBadge(a.severity)}</td><td><a href="alert.html?id=${encodeURIComponent(a.alert_id)}">${esc(a.title)}</a></td>
+    <td>${esc(a.rule_id)}</td><td class="mono">${esc(a.src_ip)}</td><td>${meter(a.risk_score, a.severity)}</td>
+    <td>${statusBadge(a.status)}</td><td>${fmt(a.last_seen)}</td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">No alerts. Alerts appear when a detection rule fires.</td></tr>`;
+  $("#events").innerHTML = eventRows(events);
+}
+$("#alerts").addEventListener("click", e => { const r = e.target.closest("tr[data-id]"); if (r) location.href = "alert.html?id=" + encodeURIComponent(r.dataset.id); });
+poll(load, CONFIG.POLL_INTERVAL_MS);
+</script></body></html>

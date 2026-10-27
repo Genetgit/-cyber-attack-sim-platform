@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alert detail</title><link rel="stylesheet" href="style.css"></head><body>
+<header><h1>Alert detail</h1><span id="conn" class="pill">Connecting…</span></header>
+<main>
+<div><a href="index.html">Back to alerts</a></div>
+<div id="err" class="err" hidden role="alert"></div>
+<section class="card" id="summary"><span class="spin"></span>Loading alert…</section>
+<section class="card"><h2>Related events</h2><div class="scroll"><table><thead id="ehead"></thead><tbody id="events"></tbody></table></div></section>
+<section class="card"><h2>Response</h2><div class="steps">
+ <div class="step"><h3>1. Analyze</h3><button class="btn" id="b-analyze">Analyze with AI</button><div id="ai" class="result pill">Not analyzed yet.</div></div>
+ <div class="step"><h3>2. Defend</h3><button class="btn" id="b-apply" disabled>Apply defense</button><div id="def" class="result pill">No defense applied.</div></div>
+ <div class="step"><h3>3. Verify</h3><button class="btn" id="b-verify" disabled>Run verification</button><div id="ver" class="result pill">Apply a defense first.</div></div>
+</div></section>
+</main>
+<dialog id="dlg"><form method="dialog"><h3>Apply defense</h3>
+<p>This runs the defense on the lab target and blocks or limits traffic from <b class="mono" id="dip"></b>.</p>
+<select id="dsel" aria-label="Defense"><option value="block_ip_iptables">Block IP with iptables</option><option value="install_fail2ban">Install fail2ban</option></select>
+<div class="row"><button class="btn ghost" value="cancel">Cancel</button><button class="btn" value="ok">Apply defense</button></div></form></dialog>
+<script src="config.js"></script><script src="common.js"></script>
+<script>
+const id = new URLSearchParams(location.search).get("id"), A = encodeURIComponent(id || "");
+let alertData = null, verifying = false, aiShown = false;
+const busy = (btn, on) => { btn.disabled = on; };
+
+function render(a) {
+  alertData = a;
+  $("#summary").innerHTML = `<h2>${esc(a.title)} ${sevBadge(a.severity)} ${statusBadge(a.status)}</h2><dl class="grid">
+  ${[["Alert ID", a.alert_id], ["Rule", a.rule_id], ["Host", a.host_id], ["Source IP", a.src_ip], ["Risk score", a.risk_score],
+     ["MITRE technique", a.mitre_technique], ["First seen", fmt(a.first_seen)], ["Last seen", fmt(a.last_seen)]]
+    .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
+  $("#ehead").innerHTML = EVENT_HEAD; $("#events").innerHTML = eventRows(a.events || []);
+  if (a.ai_analysis && !aiShown) showAI(a.ai_analysis);
+  $("#b-apply").disabled = a.status !== "open";
+  $("#b-verify").disabled = a.status === "open" || verifying;
+  if (a.status === "open") $("#ver").textContent = "Apply a defense first.";
+}
+function showAI(x) {
+  aiShown = true;
+  $("#ai").className = "result";
+  $("#ai").innerHTML = `<p><b>Summary:</b> ${esc(x.summary)}</p><p><b>Impact:</b> ${esc(x.impact)}</p>
+  <p><b>Recommended defense:</b> <span class="mono">${esc(x.recommended_defense_id)}</span></p>`;
+  $("#dsel").value = x.recommended_defense_id;
+}
+async function act(btn, panel, fn) {
+  busy(btn, true); panel.className = "result pill"; panel.innerHTML = `<span class="spin"></span>Working…`;
+  try { await fn(); } catch (e) { panel.className = "result err"; panel.textContent = e.message; }
+  finally { busy(btn, false); }
+}
+$("#b-analyze").onclick = () => act($("#b-analyze"), $("#ai"), async () => {
+  const a = await api(`/alerts/${A}/analyze`, { method: "POST" }); showAI(a.ai_analysis);
+});
+$("#b-apply").onclick = () => { $("#dip").textContent = alertData.src_ip; $("#dlg").showModal(); };
+$("#dlg").addEventListener("close", () => {
+  if ($("#dlg").returnValue !== "ok") return;
+  act($("#b-apply"), $("#def"), async () => {
+    const r = await api("/defenses/apply", { method: "POST", body: JSON.stringify({ alert_id: id, defense_id: $("#dsel").value }) });
+    $("#def").className = "result"; $("#def").innerHTML = `Defense run <span class="mono">${esc(r.run_id)}</span>: <b>${esc(r.status)}</b>`;
+    render(await api(`/alerts/${A}`));
+  });
+});
+$("#b-verify").onclick = () => act($("#b-verify"), $("#ver"), async () => {
+  verifying = true;
+  try {
+    const { verification_id } = await api("/verifications", { method: "POST", body: JSON.stringify({ alert_id: id }) });
+    const end = Date.now() + CONFIG.VERIFY_TIMEOUT_MS;
+    for (;;) {
+      const v = await api(`/verifications/${encodeURIComponent(verification_id)}`); showVer(v);
+      if (v.result !== "running") break;
+      if (Date.now() > end) throw new Error("Verification timed out. Check the runner and try again.");
+      await sleep(CONFIG.POLL_INTERVAL_MS);
+    }
+  } finally { verifying = false; }
+  render(await api(`/alerts/${A}`));
+});
+const yn = v => v === null || v === undefined ? "-" : v ? `<span class="yes">Yes</span>` : `<span class="no">No</span>`;
+function showVer(v) {
+  const b = v.baseline, r = v.retest, label = { verified: "VERIFIED", not_verified: "NOT VERIFIED", running: "RUNNING…" }[v.result];
+  $("#ver").className = "result";
+  $("#ver").innerHTML = `<span class="verdict ${esc(v.result)}">${label}</span><table><thead><tr><th></th><th>Baseline</th><th>Re-test</th></tr></thead>
+  <tr><td>Attack succeeded</td><td>${yn(b && b.attack_succeeded)}</td><td>${yn(r && r.attack_succeeded)}</td></tr>
+  <tr><td>Detected</td><td>${yn(b && b.detected)}</td><td>${yn(r && r.detected)}</td></tr></table>
+  <p>${v.result === "running" ? `<span class="spin"></span>Running attack and re-test…` : esc(v.evidence)}</p>`;
+}
+if (!id) { setStatus(false, "No alert selected. Open an alert from the list."); $("#summary").textContent = ""; }
+else poll(async () => { if (!verifying) render(await api(`/alerts/${A}`)); }, CONFIG.POLL_INTERVAL_MS);
+</script></body></html>
