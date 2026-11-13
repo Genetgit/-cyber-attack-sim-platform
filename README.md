@@ -1,7 +1,7 @@
 # Adaptive Cyber Attack Simulation & Defense Verification Platform
 
 ##  Video Presentation
-Watch the 5-minute demonstration video here: [Project Demo Video (Google Drive)](https://drive.google.com/file/d/1z6QZWVsy4oEGxapR8sO23QOYS2VSHbIY/view?usp=sharing)
+Watch the 5-minute demonstration video here: [https://drive.google.com/file/d/1z6QZWVsy4oEGxapR8sO23QOYS2VSHbIY/view?usp=sharing]
 
 ---
 
