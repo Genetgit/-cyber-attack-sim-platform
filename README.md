@@ -1,21 +1,24 @@
 # Adaptive Cyber Attack Simulation & Defense Verification Platform
 
 ##  Video Presentation
-Watch the 5-minute demonstration video here: [https://drive.google.com/file/d/1z6QZWVsy4oEGxapR8sO23QOYS2VSHbIY/view?usp=sharing]
+Watch the 5-minute demonstration video here: [Project Demo Video (Google Drive)](https://drive.google.com/file/d/1z6QZWVsy4oEGxapR8sO23QOYS2VSHbIY/view?usp=sharing)
 
+---
 
-## Team Information
+##  Team Information
 
-Team Member           CTC ID 
-Yosef Addisu        CTC-318-26 
-Genet Wegayehu      CT-2298-26 
-Fikremariam Worku   CTC-7267-26 
-Natnael Gebrehiwet  CTC-4763-26 
-Amanuel Dawit       CTC-7132-26 
+| Team Member | CTC ID |
+| :--- | :--- |
+| Yosef Addisu | CTC-318-26 |
+| Genet Wegayehu | CT-2298-26 |
+| Fikremariam Worku | CTC-7267-26 |
+| Natnael Gebrehiwet | CTC-4763-26 |
+| Amanuel Dawit | CTC-7132-26 |
 
+---
 
+##  Project Information
 
-Project Information
 ### Purpose
 Most security tools only alert you when an attack happens. The **Adaptive Cyber Attack Simulation & Defense Verification Platform** goes one step further by automating a complete, closed-loop cyber defense cycle in an isolated lab environment. It simulates a real attack, detects it, applies a defense, re-runs the exact same attack, and verifies whether the defense actually blocked it.
 
@@ -52,7 +55,7 @@ Most security tools only alert you when an attack happens. The **Adaptive Cyber 
 
 ---
 
-## How to Run in the Lab
+##  How to Run in the Lab
 
 ### 1. Ubuntu (Backend + Dashboard)
 ```bash
